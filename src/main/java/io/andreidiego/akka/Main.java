@@ -1,6 +1,6 @@
-package com.yardi.akkacourse;
+package io.andreidiego.akka;
 
-import com.yardi.akkacourse.coordinator.Coordinator;
+import io.andreidiego.akka.coordinator.Coordinator;
 
 import akka.actor.ActorSystem;
 

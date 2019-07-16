@@ -1,6 +1,6 @@
-package com.yardi.akkacourse.coordinator;
+package io.andreidiego.akka.coordinator;
 
-import com.yardi.akkacourse.ScrapeJob;
+import io.andreidiego.akka.ScrapeJob;
 
 import java.io.Serializable;
 

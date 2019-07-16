@@ -1,6 +1,6 @@
-package com.yardi.akkacourse.scraper;
+package io.andreidiego.akka.scraper;
 
-import com.yardi.akkacourse.ScrapeJob;
+import io.andreidiego.akka.ScrapeJob;
 
 import org.jsoup.select.Elements;
 

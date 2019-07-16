@@ -1,4 +1,4 @@
-package com.yardi.akkacourse;
+package io.andreidiego.akka;
 
 import java.io.Serializable;
 

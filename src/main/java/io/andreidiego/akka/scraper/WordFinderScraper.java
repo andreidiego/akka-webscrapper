@@ -1,4 +1,4 @@
-package com.yardi.akkacourse.scraper;
+package io.andreidiego.akka.scraper;
 
 import java.util.ArrayList;
 import java.util.List;

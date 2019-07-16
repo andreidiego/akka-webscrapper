@@ -1,8 +1,8 @@
-package com.yardi.akkacourse.coordinator;
+package io.andreidiego.akka.coordinator;
 
-import com.yardi.akkacourse.ScrapeJob;
-import com.yardi.akkacourse.scraper.Scraper;
-import com.yardi.akkacourse.scraper.ScrapperProtocol;
+import io.andreidiego.akka.ScrapeJob;
+import io.andreidiego.akka.scraper.Scraper;
+import io.andreidiego.akka.scraper.ScrapperProtocol;
 
 import java.util.ArrayList;
 import java.util.LinkedList;

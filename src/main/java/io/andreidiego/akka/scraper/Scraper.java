@@ -1,7 +1,7 @@
-package com.yardi.akkacourse.scraper;
+package io.andreidiego.akka.scraper;
 
-import com.yardi.akkacourse.ScrapeJob;
-import com.yardi.akkacourse.coordinator.CoordinatorProtocol;
+import io.andreidiego.akka.ScrapeJob;
+import io.andreidiego.akka.coordinator.CoordinatorProtocol;
 
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
