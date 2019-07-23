@@ -20,6 +20,10 @@ public class CoordinatorProtocol {
     public static class GiveMeWork implements Command {
     }
 
+    @Value
+    static class Shutdown implements Command {
+    }
+
     interface Event extends Serializable {
     }
 

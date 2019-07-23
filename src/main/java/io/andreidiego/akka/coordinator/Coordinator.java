@@ -1,9 +1,5 @@
 package io.andreidiego.akka.coordinator;
 
-import io.andreidiego.akka.ScrapeJob;
-import io.andreidiego.akka.scraper.Scraper;
-import io.andreidiego.akka.scraper.ScrapperProtocol;
-
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
@@ -14,8 +10,18 @@ import akka.actor.Props;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
 import akka.persistence.AbstractPersistentActor;
+import akka.persistence.DeleteMessagesFailure;
+import akka.persistence.DeleteMessagesSuccess;
+import akka.persistence.DeleteSnapshotFailure;
+import akka.persistence.DeleteSnapshotSuccess;
 import akka.persistence.RecoveryCompleted;
+import akka.persistence.SaveSnapshotFailure;
+import akka.persistence.SaveSnapshotSuccess;
+import akka.persistence.SnapshotMetadata;
 import akka.persistence.SnapshotOffer;
+import io.andreidiego.akka.ScrapeJob;
+import io.andreidiego.akka.scraper.Scraper;
+import io.andreidiego.akka.scraper.ScrapperProtocol;
 
 public class Coordinator extends AbstractPersistentActor {
     private final LoggingAdapter log = Logging.getLogger(getContext().getSystem(), this);
@@ -78,10 +84,10 @@ public class Coordinator extends AbstractPersistentActor {
                     pendingWork.poll();
                 })
                 .match(SnapshotOffer.class, snapshotOffer -> {
-                    log.debug("Snapshot offer {} received by {}", snapshotOffer, coordinatorName);
+                    log.debug("Snapshot offer {} received by {}.", snapshotOffer.snapshot(), coordinatorName);
                 })
                 .match(RecoveryCompleted.class, recoveryCompleted -> {
-                    // perform init after recovery, before any other messages
+                    // Perform init after recovery, before any other messages
                     log.debug("Recovery of {} is complete.", coordinatorName);
                 })
                 .matchAny(msg -> {
@@ -149,6 +155,39 @@ public class Coordinator extends AbstractPersistentActor {
 
                         incrementJobFailuresAndScheduleForRetry(scrapeJob);
                     }
+                })
+                .match(SaveSnapshotSuccess.class, saveSnapshotSuccess -> {
+                    final SnapshotMetadata metadata = saveSnapshotSuccess.metadata();
+
+                    log.debug("Snapshot {} successfully saved for {}.", metadata, coordinatorName);
+                })
+                .match(SaveSnapshotFailure.class, saveSnapshotFailure -> {
+                    final SnapshotMetadata metadata = saveSnapshotFailure.metadata();
+
+                    log.debug("Failure while trying to save snapshot {} for {}.", metadata, coordinatorName);
+                })
+                .match(DeleteSnapshotSuccess.class, deleteSnapshotSuccess -> {
+
+                    log.debug("{}'s snapshot {} successfully deleted.", coordinatorName, deleteSnapshotSuccess.metadata());
+                })
+                .match(DeleteSnapshotFailure.class, deleteSnapshotFailure -> {
+
+                    log.debug("Failure while trying to delete {}'s snapshot {}. Likely cause: {}",
+                              coordinatorName, deleteSnapshotFailure.metadata(), deleteSnapshotFailure.cause());
+                })
+                .match(DeleteMessagesSuccess.class, deleteMessagesSuccess -> {
+
+                    log.debug("Messages deleted from {}'s journal till {} sequence number.", coordinatorName, deleteMessagesSuccess.toSequenceNr());
+                })
+                .match(DeleteMessagesFailure.class, deleteMessagesFailure -> {
+
+                    log.debug("Failure while trying to delete messages (up to {} sequence number) from {}'s journal. Likely cause: {}",
+                              deleteMessagesFailure.toSequenceNr(), coordinatorName, deleteMessagesFailure.cause());
+                })
+                .match(CoordinatorProtocol.Shutdown.class, shutdown -> {
+                    log.debug("Shutting down {}...", coordinatorName);
+
+                    getContext().stop(getSelf());
                 })
                 .matchAny(msg -> {
                     final String senderName = sender().path().name();
