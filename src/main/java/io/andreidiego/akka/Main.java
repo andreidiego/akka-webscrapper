@@ -4,8 +4,8 @@ import io.andreidiego.akka.coordinator.Coordinator;
 
 import akka.actor.ActorSystem;
 
+// TODO Actually implement retries (use exponential back-off and circuit breaker);
 // TODO Externalize config;
-// TODO Introduce persistence;
 // TODO Find the best way to terminate the actor system;
 // TODO Think about supervision strategies:
 // TODO Scaling:
@@ -14,7 +14,6 @@ import akka.actor.ActorSystem;
 // TODO 	    What should a scraper do should any of its sub-scrappers fail/die???
 // TODO 	Clusterize it.
 // TODO Rethink work distribution (we may have more messages back and forth than we really need);
-// TODO Introduce exponential back-off on retries;
 // TODO Think about having a PageLoader actor:
 // TODO 	For not requesting the same page content more than once;
 // TODO 	What if two scrapers want to load the same url at the same time?

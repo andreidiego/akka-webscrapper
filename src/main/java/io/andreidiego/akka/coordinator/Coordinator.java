@@ -54,12 +54,14 @@ public class Coordinator extends AbstractPersistentActor {
         log.debug(" INITIAL_URL: {}", INITIAL_URL);
 
         for (int i = 1; i <= NUMBER_OF_WORKERS; i++) {
-            final ActorRef actorRef = context().actorOf(Scraper.props(self()), "Scrapper-" + i);
+            final String scrapperName = "Scrapper-" + i;
 
-            log.debug("{} spinning up new Scrapper: {}...", coordinatorName, actorRef.path().name());
+            log.debug("{} spinning up new Scrapper: {}...", coordinatorName, scrapperName);
+
+            context().actorOf(Scraper.props(self()), scrapperName);
         }
 
-        log.debug("{} sending the initial URL ({}) to itself", coordinatorName, INITIAL_URL);
+        log.debug("{} sending the initial URL ({}) to itself...", coordinatorName, INITIAL_URL);
 
         self().tell(new ScrapperProtocol.NewUrlFound(INITIAL_URL, new ScrapeJob(INITIAL_URL, 0, -1)), self());
     }
@@ -114,8 +116,7 @@ public class Coordinator extends AbstractPersistentActor {
                         registerWorker(persistedWorker);
 
                         //if (lastSequenceNr() % snapShotInterval == 0 && lastSequenceNr() != 0)
-                        //    // IMPORTANT: create a copy of snapshot because ExampleState is mutable
-                        //    saveSnapshot(state.copy());
+                        //    saveSnapshot(state);
 
                         log.debug("{} checking if there's work available to send {}...", coordinatorName, senderName);
 
@@ -156,6 +157,11 @@ public class Coordinator extends AbstractPersistentActor {
                         incrementJobFailuresAndScheduleForRetry(scrapeJob);
                     }
                 })
+                .match(CoordinatorProtocol.Shutdown.class, shutdown -> {
+                    log.debug("Shutting down {}...", coordinatorName);
+
+                    getContext().stop(getSelf());
+                })
                 .match(SaveSnapshotSuccess.class, saveSnapshotSuccess -> {
                     final SnapshotMetadata metadata = saveSnapshotSuccess.metadata();
 
@@ -183,11 +189,6 @@ public class Coordinator extends AbstractPersistentActor {
 
                     log.debug("Failure while trying to delete messages (up to {} sequence number) from {}'s journal. Likely cause: {}",
                               deleteMessagesFailure.toSequenceNr(), coordinatorName, deleteMessagesFailure.cause());
-                })
-                .match(CoordinatorProtocol.Shutdown.class, shutdown -> {
-                    log.debug("Shutting down {}...", coordinatorName);
-
-                    getContext().stop(getSelf());
                 })
                 .matchAny(msg -> {
                     final String senderName = sender().path().name();
