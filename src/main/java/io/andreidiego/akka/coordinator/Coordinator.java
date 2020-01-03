@@ -1,15 +1,17 @@
 package io.andreidiego.akka.coordinator;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
+import java.util.Set;
 
 import akka.actor.ActorRef;
 import akka.actor.Props;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
-import akka.persistence.AbstractPersistentActor;
+import akka.persistence.AbstractPersistentActorWithAtLeastOnceDelivery;
 import akka.persistence.DeleteMessagesFailure;
 import akka.persistence.DeleteMessagesSuccess;
 import akka.persistence.DeleteSnapshotFailure;
@@ -23,7 +25,7 @@ import io.andreidiego.akka.ScrapeJob;
 import io.andreidiego.akka.scraper.Scraper;
 import io.andreidiego.akka.scraper.ScrapperProtocol;
 
-public class Coordinator extends AbstractPersistentActor {
+public class Coordinator extends AbstractPersistentActorWithAtLeastOnceDelivery {
     private final LoggingAdapter log = Logging.getLogger(getContext().getSystem(), this);
 
     //TODO Externalize these
@@ -37,6 +39,7 @@ public class Coordinator extends AbstractPersistentActor {
     // Actor State
     private final List<ActorRef> workers;
     private final Queue<ScrapeJob> pendingWork;
+    private final Set<ScrapeJob> assignedWork;
 
     public static Props props() {
         return Props.create(Coordinator.class);
@@ -46,6 +49,7 @@ public class Coordinator extends AbstractPersistentActor {
         coordinatorName = self().path().name();
         workers = new ArrayList<>();
         pendingWork = new LinkedList<>();
+        assignedWork = new HashSet<>();
 
         log.debug("Building {}. Initial config:", coordinatorName);
         log.debug(" NUMBER_OF_WORKERS: {}", NUMBER_OF_WORKERS);
@@ -120,7 +124,7 @@ public class Coordinator extends AbstractPersistentActor {
 
                         log.debug("{} checking if there's work available to send {}...", coordinatorName, senderName);
 
-                        ifWorkAvailableDelegateTo(persistedWorker);
+                        ifWorkAvailableAssignItTo(persistedWorker);
                     });
 
                 })
@@ -140,7 +144,7 @@ public class Coordinator extends AbstractPersistentActor {
                     log.debug("Message {} received by {} from {}.", msg, coordinatorName, senderName);
                     log.debug("Work requested by {}. {} checking if there's work available to send...", senderName, coordinatorName);
 
-                    ifWorkAvailableDelegateTo(sender());
+                    ifWorkAvailableAssignItTo(sender());
                 })
                 //TODO Handle exponential back-off on retries of failed scrapes
                 .match(ScrapperProtocol.ScrapeFailed.class, msg -> {
@@ -204,9 +208,9 @@ public class Coordinator extends AbstractPersistentActor {
         log.debug("{} added a new worker to the pool of workers: {}", coordinatorName, worker.path().name());
     }
 
-    private void ifWorkAvailableDelegateTo(final ActorRef worker) {
+    private void ifWorkAvailableAssignItTo(final ActorRef worker) {
         if (thereIsPendingWork()) {
-            sendWorkTo(worker);
+            assignWorkTo(worker);
         }
     }
 
@@ -218,16 +222,24 @@ public class Coordinator extends AbstractPersistentActor {
         return workAvailable;
     }
 
-    private void sendWorkTo(final ActorRef worker) {
+    private void assignWorkTo(final ActorRef worker) {
 
         persist(new CoordinatorProtocol.WorkDistributed(pendingWork.peek()), (CoordinatorProtocol.WorkDistributed workDistributed) -> {
-            final ScrapeJob nextAvailableWork = nextAvailableWork();
+            final ScrapeJob nextAvailableWork = markWorkAsAssigned();
             getContext().getSystem().eventStream().publish(workDistributed);
 
             log.debug("{} sending {} to worker {}...", coordinatorName, nextAvailableWork, worker.path().name());
 
             worker.tell(ScrapperProtocol.ScrapeThis.builder().scrapeJob(nextAvailableWork).build(), self());
         });
+    }
+
+    private ScrapeJob markWorkAsAssigned() {
+        final ScrapeJob nextAvailableWork = nextAvailableWork();
+
+        assignedWork.add(nextAvailableWork);
+
+        return nextAvailableWork;
     }
 
     private ScrapeJob nextAvailableWork() {
