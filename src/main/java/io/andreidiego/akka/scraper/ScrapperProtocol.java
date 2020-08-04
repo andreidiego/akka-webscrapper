@@ -1,12 +1,10 @@
 package io.andreidiego.akka.scraper;
 
 import io.andreidiego.akka.ScrapeJob;
-
-import org.jsoup.nodes.Document;
-
 import lombok.Builder;
 import lombok.Value;
-import lombok.experimental.Wither;
+import lombok.With;
+import org.jsoup.nodes.Document;
 
 public class ScrapperProtocol {
 
@@ -16,11 +14,11 @@ public class ScrapperProtocol {
     @Value
     @Builder
     public static class ScrapeThis implements Command {
-        private final ScrapeJob scrapeJob;
-        @Wither
-        private final Document document;
-        @Wither
-        private final String wordToFind;
+        ScrapeJob scrapeJob;
+        @With
+        Document document;
+        @With
+        String wordToFind;
     }
 
     private interface Event {
@@ -28,12 +26,12 @@ public class ScrapperProtocol {
 
     @Value
     public static class NewUrlFound implements Event {
-        private final String newURL;
-        private final ScrapeJob originalScrapeJob;
+        String newURL;
+        ScrapeJob originalScrapeJob;
     }
 
     @Value
     public static class ScrapeFailed implements Event {
-        private final ScrapeJob scrapeJob;
+        ScrapeJob scrapeJob;
     }
 }
